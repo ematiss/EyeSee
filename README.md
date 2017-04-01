@@ -1,6 +1,6 @@
 # HumanVision AR
 HackPrinceton '17 Project
-Emils Matiss, Mostafa Okasha, Susan Wang Xing
+### Emils Matiss, Mostafa Okasha, Susan Wang Xing
 
 ## Details
 * Pull image form webcam
