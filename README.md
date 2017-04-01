@@ -1,11 +1,14 @@
-# LeapKeyboard
+# HumanVision AR
 HackPrinceton '17 Project
 
 ## Details
-https://docs.google.com/document/d/1ZrGcvhNSinO1USLozu-BMefw6FSb0JXOEgjdiJoHM10/edit?usp=sharing
+* Pull image form webcam
+* Process image for high contrast
+* Use ML to identify objects
+* Use Watson aor Alexa for speech commands
 
 ## TODOs
-*
-*
-*
+* Identifying objects (training)
+* Look into Alex/Watson
+
 
