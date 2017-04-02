@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+import sys
 import copy
 from multiprocessing import Process, Queue
 import time
@@ -10,7 +11,7 @@ import time
 
 class FLANN(Process):
 
-    def __init__(self,frame_queue, output_queue, descriptor, trainKP, height, width):
+    def __init__(self,frame_queue, output_queue, descriptor, trainKP, height, width, threshold):
         Process.__init__(self)
         self.frame_queue = frame_queue
         self.output_queue = output_queue
@@ -19,6 +20,7 @@ class FLANN(Process):
         self.stop = False
         self.descriptor = descriptor
         self.trainKP = trainKP
+        self.threshold = threshold
 
     def get_frame(self):
         if not self.frame_queue.empty():
@@ -37,7 +39,7 @@ class FLANN(Process):
         for m,n in matches:
             if(m.distance<0.75*n.distance):
                 goodMatch.append(m)
-        MIN_MATCH_COUNT=50
+        MIN_MATCH_COUNT=self.threshold
         if(len(goodMatch)>=MIN_MATCH_COUNT):
             tp=[]
             qp=[]
@@ -45,12 +47,10 @@ class FLANN(Process):
                 tp.append(self.trainKP[m.trainIdx].pt)
                 qp.append(queryKP[m.queryIdx].pt)
             tp,qp=np.float32((tp,qp))
-            #os.system("say wow look a stopsign")
             H,status=cv2.findHomography(tp,qp,cv2.RANSAC,3.0)
 
             trainBorder=np.float32([[[0,0],[0,self.height-1],[self.width-1,self.height-1],[self.width-1,0]]])
             queryBorder=cv2.perspectiveTransform(trainBorder,H)
-            #os.system("say found")
 
             if self.output_queue.full():
                 self.output_queue.get_nowait()
@@ -78,14 +78,16 @@ if __name__ == '__main__':
         Input_Queue.put(frame)
 
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
 
     #training section
     detector=cv2.xfeatures2d.SIFT_create()
     FLANN_INDEX_KDITREE=0
     flannParam=dict(algorithm=FLANN_INDEX_KDITREE,tree=5)
     flann=cv2.FlannBasedMatcher(flannParam,{})
-    trainImg=cv2.imread("stop_sign.jpg")
+    trainImg=cv2.imread(sys.argv[1])
+    label = sys.argv[2]
+    threshold = int(sys.argv[3])
     h,w,c = trainImg.shape
     trainImgGray = cv2.cvtColor(trainImg,cv2.COLOR_BGR2GRAY)
     trainKP,trainDesc=detector.detectAndCompute(trainImgGray,None)
@@ -101,7 +103,7 @@ if __name__ == '__main__':
     Input_Queue = Queue(maxsize = 3)
     Output_Queue = Queue(maxsize = 3)
     for x in range((threadn -1)):
-        ft = FLANN(frame_queue = Input_Queue, output_queue = Output_Queue, descriptor = trainDesc, trainKP = trainKP, height = h, width = w)
+        ft = FLANN(frame_queue = Input_Queue, output_queue = Output_Queue, descriptor = trainDesc, trainKP = trainKP, height = h, width = w, threshold = threshold)
         ft.daemon = True
         ft.start()
         process_list.append(ft)
@@ -117,18 +119,24 @@ if __name__ == '__main__':
         ret, frame = cap.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         put_frame(gray)
-        contour = cv2.Canny(gray, 80, 200, apertureSize = 3)
-        contour = cv2.dilate(contour, np.ones((2, 2)))
-        combined = cv2.addWeighted(contour, 0.8, gray, 0.2, 0)
+        contour = cv2.Canny(gray, 100, 200, apertureSize = 3)
+        contour = cv2.dilate(contour, np.ones((5, 5)))
+        combined = cv2.addWeighted(contour, 0.5, gray, 0.5, 0)
         combined = cv2.cvtColor(combined, cv2.COLOR_GRAY2BGR)
         if not Output_Queue.empty():
             result = Output_Queue.get()
             points = copy.deepcopy(result)
             cv2.polylines(combined,[np.int32(points)],True,(0,0,255),5)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            coordinates = (int(points[0][0][0] - 50), int(points[0][0][1] - 50))
+            cv2.putText(combined, label, coordinates, font, 2, (200,255,155), 5)
             found = True
         else:
             if found:
                 cv2.polylines(combined,[np.int32(points)],True,(0,0,255),5)
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                coordinates = (int(points[0][0][0] - 50), int(points[0][0][1] - 50))
+                cv2.putText(combined, label, coordinates, font, 2, (200,255,155), 5)
                 delay = delay + 1
                 if delay == 15:
                     found = False
