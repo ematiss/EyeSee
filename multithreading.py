@@ -20,7 +20,6 @@ class FLANN(Process):
         self.descriptor = descriptor
         self.trainKP = trainKP
 
-
     def get_frame(self):
         if not self.frame_queue.empty():
             return True, self.frame_queue.get()
@@ -72,7 +71,10 @@ if __name__ == '__main__':
 
     def put_frame(frame):
         if Input_Queue.full():
-            Input_Queue.get_nowait()
+            try:
+                Input_Queue.get( True, 0.2 )
+            except Queue.Empty:
+                print("Queue was empty")
         Input_Queue.put(frame)
 
 
@@ -116,6 +118,7 @@ if __name__ == '__main__':
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         put_frame(gray)
         contour = cv2.Canny(gray, 80, 200, apertureSize = 3)
+        contour = cv2.dilate(contour, np.ones((2, 2)))
         combined = cv2.addWeighted(contour, 0.8, gray, 0.2, 0)
         combined = cv2.cvtColor(combined, cv2.COLOR_GRAY2BGR)
         if not Output_Queue.empty():
@@ -127,12 +130,9 @@ if __name__ == '__main__':
             if found:
                 cv2.polylines(combined,[np.int32(points)],True,(0,0,255),5)
                 delay = delay + 1
-                if delay == 10:
+                if delay == 15:
                     found = False
                     delay = 0
-
-
-
 
 
         h,w,c = combined.shape
