@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 import os
-
+import copy
 from multiprocessing import Process, Queue
 import time
 
@@ -107,7 +107,9 @@ if __name__ == '__main__':
     ch = cv2.waitKey(1)
     cv2.namedWindow('Threaded Video', cv2.WINDOW_NORMAL)
 
-    target = None
+    found = False
+    delay = 0
+    points = np.array([])
 
     while True:
         ret, frame = cap.read()
@@ -118,12 +120,19 @@ if __name__ == '__main__':
         combined = cv2.cvtColor(combined, cv2.COLOR_GRAY2BGR)
         if not Output_Queue.empty():
             result = Output_Queue.get()
-            target = result
-            cv2.polylines(combined,[np.int32(result)],True,(0,0,255),5)
+            points = copy.deepcopy(result)
+            cv2.polylines(combined,[np.int32(points)],True,(0,0,255),5)
+            found = True
         else:
-            if target is not None:
-                cv2.polylines(combined,[np.int32(target)],True,(0,0,255),5)
-                target = None
+            if found:
+                cv2.polylines(combined,[np.int32(points)],True,(0,0,255),5)
+                delay = delay + 1
+                if delay == 10:
+                    found = False
+                    delay = 0
+
+
+
 
 
         h,w,c = combined.shape
