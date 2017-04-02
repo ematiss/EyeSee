@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import os
 import sys
+import subprocess
 import copy
 from multiprocessing import Process, Queue
 import time
@@ -112,6 +113,8 @@ if __name__ == '__main__':
     cv2.namedWindow('Threaded Video', cv2.WINDOW_NORMAL)
 
     found = False
+    announced = False
+    lastAnnounce = 0
     delay = 0
     points = np.array([])
 
@@ -131,6 +134,14 @@ if __name__ == '__main__':
             coordinates = (int(points[0][0][0] - 50), int(points[0][0][1] - 50))
             cv2.putText(combined, label, coordinates, font, 2, (200,255,155), 5)
             found = True
+            if not announced:
+                call = subprocess.Popen(['say', label])
+                announced = True
+            else:
+                lastAnnounce += 1
+                if lastAnnounce > 3:
+                    lastAnnounce = 0
+                    announced = False
         else:
             if found:
                 cv2.polylines(combined,[np.int32(points)],True,(0,0,255),5)
